@@ -97,6 +97,19 @@ describe("parseFeishuMessageEvent – mentionedBot", () => {
     expect(ctx.content).toBe("hello world");
   });
 
+  it("strips only bot mention text and keeps non-bot mention text", () => {
+    const event = makeEvent(
+      "group",
+      [
+        { key: "@_bot", name: "Bot", id: { open_id: BOT_OPEN_ID } },
+        { key: "@_user", name: "Asuka", id: { open_id: "ou_asuka" } },
+      ],
+      "@Bot @_bot 你能看到 @Asuka @_user 的 id 吗",
+    );
+    const ctx = parseFeishuMessageEvent(event as any, BOT_OPEN_ID);
+    expect(ctx.content).toBe("你能看到 @Asuka @_user 的 id 吗");
+  });
+
   it("returns mentionedBot=true for post message with at (no top-level mentions)", () => {
     const BOT_OPEN_ID = "ou_bot_123";
     const event = makePostEvent({

@@ -8,27 +8,37 @@ describe("stripBotMention", () => {
     expect(stripBotMention("hello world", undefined)).toBe("hello world");
   });
 
-  it("strips mention name and key for normal mentions", () => {
+  it("strips mention name and key for bot mentions when botOpenId is provided", () => {
     const mentions: Mentions = [{ key: "@_bot_1", name: "Bot", id: { open_id: "ou_bot" } }];
-    expect(stripBotMention("@Bot hello @_bot_1", mentions)).toBe("hello");
+    expect(stripBotMention("@Bot hello @_bot_1", mentions, "ou_bot")).toBe("hello");
   });
 
   it("treats mention.name regex metacharacters as literal text", () => {
     const mentions: Mentions = [{ key: "@_bot_1", name: ".*", id: { open_id: "ou_bot" } }];
-    expect(stripBotMention("@NotBot hello", mentions)).toBe("@NotBot hello");
+    expect(stripBotMention("@NotBot hello", mentions, "ou_bot")).toBe("@NotBot hello");
   });
 
   it("treats mention.key regex metacharacters as literal text", () => {
     const mentions: Mentions = [{ key: ".*", name: "Bot", id: { open_id: "ou_bot" } }];
-    expect(stripBotMention("hello world", mentions)).toBe("hello world");
+    expect(stripBotMention("hello world", mentions, "ou_bot")).toBe("hello world");
   });
 
   it("trims once after all mention replacements", () => {
     const mentions: Mentions = [{ key: "@_bot_1", name: "Bot", id: { open_id: "ou_bot" } }];
-    expect(stripBotMention("  @_bot_1 hello   ", mentions)).toBe("hello");
+    expect(stripBotMention("  @_bot_1 hello   ", mentions, "ou_bot")).toBe("hello");
   });
 
-  it("strips multiple mentions in one pass", () => {
+  it("strips only bot mentions when botOpenId is provided", () => {
+    const mentions: Mentions = [
+      { key: "@_bot", name: "Bot", id: { open_id: "ou_bot" } },
+      { key: "@_user", name: "Asuka", id: { open_id: "ou_asuka" } },
+    ];
+    expect(stripBotMention("@Bot @_bot 你能看到 @Asuka @_user 的 id 吗", mentions, "ou_bot")).toBe(
+      "你能看到 @Asuka @_user 的 id 吗",
+    );
+  });
+
+  it("keeps backward-compatible behavior when botOpenId is omitted", () => {
     const mentions: Mentions = [
       { key: "@_bot_1", name: "Bot One", id: { open_id: "ou_bot_1" } },
       { key: "@_bot_2", name: "Bot Two", id: { open_id: "ou_bot_2" } },

@@ -210,10 +210,14 @@ function checkBotMentioned(event: FeishuMessageEvent, botOpenId?: string): boole
 export function stripBotMention(
   text: string,
   mentions?: FeishuMessageEvent["message"]["mentions"],
+  botOpenId?: string,
 ): string {
   if (!mentions || mentions.length === 0) return text;
   let result = text;
   for (const mention of mentions) {
+    if (botOpenId && mention.id.open_id !== botOpenId) {
+      continue;
+    }
     result = result.replace(new RegExp(`@${escapeRegExp(mention.name)}\\s*`, "g"), "");
     result = result.replace(new RegExp(escapeRegExp(mention.key), "g"), "");
   }
@@ -467,7 +471,7 @@ export function parseFeishuMessageEvent(
 ): FeishuMessageContext {
   const rawContent = parseMessageContent(event.message.content, event.message.message_type);
   const mentionedBot = checkBotMentioned(event, botOpenId);
-  const content = stripBotMention(rawContent, event.message.mentions);
+  const content = stripBotMention(rawContent, event.message.mentions, botOpenId);
 
   const ctx: FeishuMessageContext = {
     chatId: event.message.chat_id,
@@ -551,8 +555,8 @@ export async function handleFeishuMessage(params: {
 
   // Log mention targets if detected
   if (ctx.mentionTargets && ctx.mentionTargets.length > 0) {
-    const names = ctx.mentionTargets.map((t) => t.name).join(", ");
-    log(`feishu[${account.accountId}]: detected @ forward request, targets: [${names}]`);
+    const targetLabels = ctx.mentionTargets.map((t) => `${t.name}(${t.openId})`).join(", ");
+    log(`feishu[${account.accountId}]: detected @ forward request, targets: [${targetLabels}]`);
   }
 
   const historyLimit = Math.max(
@@ -835,10 +839,11 @@ export async function handleFeishuMessage(params: {
     const speaker = ctx.senderName ?? ctx.senderOpenId;
     messageBody = `${speaker}: ${messageBody}`;
 
-    // If there are mention targets, inform the agent that replies will auto-mention them
+    // If there are mention targets, inform the agent that replies will auto-mention them.
+    // Include openId so mention target identity is visible in transcript/debug logs.
     if (ctx.mentionTargets && ctx.mentionTargets.length > 0) {
-      const targetNames = ctx.mentionTargets.map((t) => t.name).join(", ");
-      messageBody += `\n\n[System: Your reply will automatically @mention: ${targetNames}. Do not write @xxx yourself.]`;
+      const targetLabels = ctx.mentionTargets.map((t) => `${t.name}(${t.openId})`).join(", ");
+      messageBody += `\n\n[System: Your reply will automatically @mention: ${targetLabels}. Do not write @xxx yourself.]`;
     }
 
     const envelopeFrom = isGroup ? `${ctx.chatId}:${ctx.senderOpenId}` : ctx.senderOpenId;
